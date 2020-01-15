@@ -3,9 +3,11 @@
  *  Author: Michael Kohn
  *   Email: mike@mikekohn.net
  *     Web: http://www.mikekohn.net/
- * License: GPL
+ * License: GPLv3
  *
- * Copyright 2014-2015 by Michael Kohn
+ * Copyright 2014-2019 by Michael Kohn, Joe Davisson
+ *
+ * Apple IIgs written by Joe Davisson
  *
  */
 
@@ -13,7 +15,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include "AppleIIgs.h"
+#include "generator/AppleIIgs.h"
 
 #define PUSH() \
   fprintf(out, "; PUSH\n"); \
@@ -49,19 +51,6 @@ AppleIIgs::AppleIIgs() :
 
 AppleIIgs::~AppleIIgs()
 {
-  if (need_hires_enable) { insert_hires_enable(); }
-  if (need_hires_clear) { insert_hires_clear(); }
-  if (need_hires_update) { insert_hires_update(); }
-  if (need_hires_plot) { insert_hires_plot(); }
-  if (need_hires_line) { insert_hires_line(); }
-  if (need_hires_span) { insert_hires_span(); }
-  if (need_hires_read) { insert_hires_read(); }
-  if (need_hires_sprite) { insert_hires_sprite(); }
-  if (need_hires_palette) { insert_hires_palette(); }
-  if (need_hires_set_row) { insert_hires_set_row(); }
-  if (need_rnd) { insert_rnd(); }
-  insert_hires_calc_address();
-  insert_glu();
 }
 
 int AppleIIgs::open(const char *filename)
@@ -94,6 +83,25 @@ int AppleIIgs::open(const char *filename)
   fprintf(out, "; set up processor stack\n");
   fprintf(out, "  lda #0x1ff\n");
   fprintf(out, "  tcs\n");
+
+  return 0;
+}
+
+int AppleIIgs::finish()
+{
+  if (need_hires_enable) { insert_hires_enable(); }
+  if (need_hires_clear) { insert_hires_clear(); }
+  if (need_hires_update) { insert_hires_update(); }
+  if (need_hires_plot) { insert_hires_plot(); }
+  if (need_hires_line) { insert_hires_line(); }
+  if (need_hires_span) { insert_hires_span(); }
+  if (need_hires_read) { insert_hires_read(); }
+  if (need_hires_sprite) { insert_hires_sprite(); }
+  if (need_hires_palette) { insert_hires_palette(); }
+  if (need_hires_set_row) { insert_hires_set_row(); }
+  if (need_rnd) { insert_rnd(); }
+  insert_hires_calc_address();
+  insert_glu();
 
   return 0;
 }

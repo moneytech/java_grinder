@@ -3,9 +3,9 @@
  *  Author: Michael Kohn
  *   Email: mike@mikekohn.net
  *     Web: http://www.mikekohn.net/
- * License: GPL
+ * License: GPLv3
  *
- * Copyright 2014-2016 by Michael Kohn
+ * Copyright 2014-2019 by Michael Kohn
  *
  */
 
@@ -14,7 +14,7 @@
 #include <string.h>
 #include <stdint.h>
 
-#include "Z80.h"
+#include "generator/Z80.h"
 
 #define REG_STACK(a) (stack_regs[a])
 #define LOCALS(i) (i * 4)
@@ -71,7 +71,7 @@ int Z80::open(const char *filename)
   return 0;
 }
 
-int Z80::add_functions()
+int Z80::finish()
 {
   // Math
   if(need_mul16_integer) { insert_mul16_integer(); }
@@ -95,12 +95,11 @@ int Z80::start_init()
   return 0;
 }
 
-int Z80::insert_static_field_define(const char *name, const char *type, int index)
+int Z80::insert_static_field_define(std::string &name, std::string &type, int index)
 {
-  fprintf(out, "%s equ ram_start+%d\n", name, (index + 1) * 2);
+  fprintf(out, "%s equ ram_start+%d\n", name.c_str(), (index + 1) * 2);
   return 0;
 }
-
 
 int Z80::init_heap(int field_count)
 {
@@ -110,28 +109,28 @@ int Z80::init_heap(int field_count)
   return 0;
 }
 
-int Z80::field_init_int(char *name, int index, int value)
+int Z80::field_init_int(std::string &name, int index, int value)
 {
   if (value < -32768 || value > 65535) { return -1; }
   fprintf(out, "  ld hl, %d\n", value);
-  fprintf(out, "  ld (%s), hl\n", name);
+  fprintf(out, "  ld (%s), hl\n", name.c_str());
   return 0;
 }
 
-int Z80::field_init_ref(char *name, int index)
+int Z80::field_init_ref(std::string &name, int index)
 {
-  fprintf(out, "  ld hl, _%s\n", name);
-  fprintf(out, "  ld (%s), hl\n", name);
+  fprintf(out, "  ld hl, _%s\n", name.c_str());
+  fprintf(out, "  ld (%s), hl\n", name.c_str());
   return 0;
 }
 
-void Z80::method_start(int local_count, int max_stack, int param_count, const char *name)
+void Z80::method_start(int local_count, int max_stack, int param_count, std::string &name)
 {
   stack = 0;
 
-  is_main = (strcmp(name, "main") == 0) ? 1 : 0;
+  is_main = (name == "main") ? 1 : 0;
 
-  fprintf(out, "%s:\n", name);
+  fprintf(out, "%s:\n", name.c_str());
   fprintf(out, "  ;; Save iy if needed.  iy = alloca(params * 2)\n");
   if (is_main)
   {
@@ -166,10 +165,10 @@ int Z80::push_local_var_ref(int index)
   return push_local_var_int(index);
 }
 
-int Z80::push_ref_static(const char *name, int index)
+int Z80::push_ref_static(std::string &name, int index)
 {
   fprintf(out, "  ;; push_ref_static(%d)\n", index);
-  fprintf(out, "  ld hl, _%s\n", name);
+  fprintf(out, "  ld hl, _%s\n", name.c_str());
   fprintf(out, "  push hl\n");
   stack++;
 
@@ -211,6 +210,7 @@ int Z80::push_int(int32_t n)
   return 0;
 }
 
+#if 0
 int Z80::push_long(int64_t n)
 {
   return -1;
@@ -225,11 +225,12 @@ int Z80::push_double(double f)
 {
   return -1;
 }
+#endif
 
-int Z80::push_ref(char *name)
+int Z80::push_ref(std::string &name)
 {
-  fprintf(out, "  ;; push_short(%s)\n", name);
-  fprintf(out, "  ld hl, (%s)\n", name);
+  fprintf(out, "  ;; push_short(%s)\n", name.c_str());
+  fprintf(out, "  ld hl, (%s)\n", name.c_str());
   fprintf(out, "  push hl\n");
   stack++;
 
@@ -522,9 +523,10 @@ int Z80::integer_to_short()
   return 0;
 }
 
-int Z80::jump_cond(const char *label, int cond, int distance)
+int Z80::jump_cond(std::string &label, int cond, int distance)
 {
-  fprintf(out, "  ;; jump_cond(%s, %s)\n", label, cond_str[cond]);
+  fprintf(out, "  ;; jump_cond(%s, %s)\n", label.c_str(), cond_str[cond]);
+
   if (cond == COND_GREATER)
   {
     fprintf(out, "  pop bc\n");
@@ -549,7 +551,7 @@ int Z80::jump_cond(const char *label, int cond, int distance)
     case COND_EQUAL:
       fprintf(out, "  and a\n");  // clear carry
       fprintf(out, "  sbc hl, bc\n");
-      fprintf(out, "  jp z, %s\n", label);
+      fprintf(out, "  jp z, %s\n", label.c_str());
       //fprintf(out, "  cp d\n");
       //fprintf(out, "  jr nz, label_%d\n", label_count);
       //fprintf(out, "  cp e\n");
@@ -560,7 +562,7 @@ int Z80::jump_cond(const char *label, int cond, int distance)
     case COND_NOT_EQUAL:
       fprintf(out, "  and a\n");  // clear carry
       fprintf(out, "  sbc hl, bc\n");
-      fprintf(out, "  jp nz, %s\n", label);
+      fprintf(out, "  jp nz, %s\n", label.c_str());
       //fprintf(out, "  cp d\n");
       //fprintf(out, "  jr z, label_%d\n", label_count);
       //fprintf(out, "  cp e\n");
@@ -576,7 +578,7 @@ int Z80::jump_cond(const char *label, int cond, int distance)
       fprintf(out, "  ld a, l\n");
       //fprintf(out, "  ld a, f\n");
       fprintf(out, "  and 0x84\n");
-      fprintf(out, "  jp po, %s\n", label);
+      fprintf(out, "  jp po, %s\n", label.c_str());
       //fprintf(out, "  cp d\n");
       //fprintf(out, "  jr z %s\n", label);  // if d=0 try lower
       //fprintf(out, "  ld a, f\n");
@@ -597,7 +599,7 @@ int Z80::jump_cond(const char *label, int cond, int distance)
       fprintf(out, "  ld a, l\n");
       //fprintf(out, "  ld a, f\n");
       fprintf(out, "  and 0x84\n");
-      fprintf(out, "  jp pe, %s\n", label);
+      fprintf(out, "  jp pe, %s\n", label.c_str());
       break;
     default:
       return -1;
@@ -607,9 +609,9 @@ int Z80::jump_cond(const char *label, int cond, int distance)
   return 0;
 }
 
-int Z80::jump_cond_integer(const char *label, int cond, int distance)
+int Z80::jump_cond_integer(std::string &label, int cond, int distance)
 {
-  fprintf(out, "  ;; jump_cond_integer(%s,%s)\n", label, cond_str[cond]);
+  fprintf(out, "  ;; jump_cond_integer(%s,%s)\n", label.c_str(), cond_str[cond]);
   if (cond == COND_GREATER)
   {
     fprintf(out, "  pop hl\n");
@@ -634,12 +636,12 @@ int Z80::jump_cond_integer(const char *label, int cond, int distance)
     case COND_EQUAL:
       fprintf(out, "  and a\n");  // clear carry
       fprintf(out, "  sbc hl, bc\n");
-      fprintf(out, "  jp z, %s\n", label);
+      fprintf(out, "  jp z, %s\n", label.c_str());
       break;
     case COND_NOT_EQUAL:
       fprintf(out, "  and a\n");  // clear carry
       fprintf(out, "  sbc hl, bc\n");
-      fprintf(out, "  jp nz, %s\n", label);
+      fprintf(out, "  jp nz, %s\n", label.c_str());
       label_count++;
       break;
     case COND_LESS:
@@ -650,7 +652,7 @@ int Z80::jump_cond_integer(const char *label, int cond, int distance)
       fprintf(out, "  ld a, l\n");
       //fprintf(out, "  ld a, f\n");
       fprintf(out, "  and 0x84\n");
-      fprintf(out, "  jp po, %s\n", label);
+      fprintf(out, "  jp po, %s\n", label.c_str());
       break;
     case COND_LESS_EQUAL:
       return -1;
@@ -664,13 +666,14 @@ int Z80::jump_cond_integer(const char *label, int cond, int distance)
       fprintf(out, "  ld a, l\n");
       //fprintf(out, "  ld a, f\n");
       fprintf(out, "  and 0x84\n");
-      fprintf(out, "  jp pe, %s\n", label);
+      fprintf(out, "  jp pe, %s\n", label.c_str());
       break;
     default:
       return -1;
   }
 
   stack -= 2;
+
   return 0;
 }
 
@@ -718,13 +721,13 @@ int Z80::return_void(int local_count)
   return 0;
 }
 
-int Z80::jump(const char *name, int distance)
+int Z80::jump(std::string &name, int distance)
 {
-  fprintf(out, "  jp %s\n", name);
+  fprintf(out, "  jp %s\n", name.c_str());
   return 0;
 }
 
-int Z80::call(const char *name)
+int Z80::call(std::string &name)
 {
   return -1;
 }
@@ -733,7 +736,7 @@ int Z80::invoke_static_method(const char *name, int params, int is_void)
 {
 int n;
 
-  printf("invoke_static_method() name=%s params=%d is_void=%d\n", name, params, is_void);
+  //printf("invoke_static_method() name=%s params=%d is_void=%d\n", name, params, is_void);
   fprintf(out, "  ;; invoke_static_method(%s,%d,%d)\n", name, params, is_void);
 
   // Pop all params off stack
@@ -766,16 +769,16 @@ int n;
   return 0;
 }
 
-int Z80::put_static(const char *name, int index)
+int Z80::put_static(std::string &name, int index)
 {
   fprintf(out, "  pop hl\n");
-  fprintf(out, "  ld (%s), hl\n", name);
+  fprintf(out, "  ld (%s), hl\n", name.c_str());
   return 0;
 }
 
-int Z80::get_static(const char *name, int index)
+int Z80::get_static(std::string &name, int index)
 {
-  fprintf(out, "  ld hl, (%s)\n", name);
+  fprintf(out, "  ld hl, (%s)\n", name.c_str());
   fprintf(out, "  push hl\n");
   return 0;
 }
@@ -818,22 +821,28 @@ int Z80::new_array(uint8_t type)
   return 0;
 }
 
-int Z80::insert_array(const char *name, int32_t *data, int len, uint8_t type)
+int Z80::insert_array(std::string &name, int32_t *data, int len, uint8_t type)
 {
   fprintf(out, ".align 16\n");
   if (type == TYPE_BYTE)
-  { return insert_db(name, data, len, TYPE_INT); }
+  {
+    return insert_db(name, data, len, TYPE_INT);
+  }
     else
   if (type == TYPE_SHORT)
-  { return insert_dw(name, data, len, TYPE_INT); }
+  {
+    return insert_dw(name, data, len, TYPE_INT);
+  }
     else
   if (type == TYPE_INT)
-  { return insert_dc32(name, data, len, TYPE_INT); }
+  {
+    return insert_dc32(name, data, len, TYPE_INT);
+  }
 
   return -1;
 }
 
-int Z80::insert_string(const char *name, uint8_t *bytes, int len)
+int Z80::insert_string(std::string &name, uint8_t *bytes, int len)
 {
   fprintf(out, ".align 16\n");
   fprintf(out, "  dc16 %d\n", len);
@@ -853,9 +862,9 @@ int Z80::push_array_length()
   return 0;
 }
 
-int Z80::push_array_length(const char *name, int field_id)
+int Z80::push_array_length(std::string &name, int field_id)
 {
-  fprintf(out, "  ld hl, (%s-2)\n", name);
+  fprintf(out, "  ld hl, (%s-2)\n", name.c_str());
   fprintf(out, "  push hl\n");
   return 0;
 }
@@ -899,11 +908,11 @@ int Z80::array_read_int()
   return array_read_short();
 }
 
-int Z80::array_read_byte(const char *name, int field_id)
+int Z80::array_read_byte(std::string &name, int field_id)
 {
   fprintf(out, "  ;; array_read_byte(name,field_id);\n");
   fprintf(out, "  pop bc\n");
-  fprintf(out, "  ld hl, (%s)\n", name);
+  fprintf(out, "  ld hl, (%s)\n", name.c_str());
   fprintf(out, "  and a\n");
   fprintf(out, "  adc hl, bc\n");
   fprintf(out, "  ld c, (hl)\n");
@@ -917,13 +926,13 @@ int Z80::array_read_byte(const char *name, int field_id)
   return 0;
 }
 
-int Z80::array_read_short(const char *name, int field_id)
+int Z80::array_read_short(std::string &name, int field_id)
 {
   fprintf(out, "  ;; array_read_short()\n");
   fprintf(out, "  pop bc\n");
   fprintf(out, "  sla c\n");
   fprintf(out, "  rlc b\n");
-  fprintf(out, "  ld hl, (%s)\n", name);
+  fprintf(out, "  ld hl, (%s)\n", name.c_str());
   fprintf(out, "  and a\n");
   fprintf(out, "  adc hl, bc\n");
   fprintf(out, "  ld c, (hl)\n");
@@ -933,7 +942,7 @@ int Z80::array_read_short(const char *name, int field_id)
   return 0;
 }
 
-int Z80::array_read_int(const char *name, int field_id)
+int Z80::array_read_int(std::string &name, int field_id)
 {
   return array_read_short(name, field_id);
 }
@@ -971,24 +980,24 @@ int Z80::array_write_int()
   return array_write_short();
 }
 
-int Z80::array_write_byte(const char *name, int field_id)
+int Z80::array_write_byte(std::string &name, int field_id)
 {
   fprintf(out, "  ;; array_write_byte(name,field_id)\n");
   fprintf(out, "  pop de\n");
   fprintf(out, "  pop bc\n");
-  fprintf(out, "  ld hl, (%s)\n", name);
+  fprintf(out, "  ld hl, (%s)\n", name.c_str());
   fprintf(out, "  and a\n");
   fprintf(out, "  adc hl, bc\n");
   fprintf(out, "  ld (hl), e\n");
   return 0;
 }
 
-int Z80::array_write_short(const char *name, int field_id)
+int Z80::array_write_short(std::string &name, int field_id)
 {
   fprintf(out, "  ;; array_write_byte(name,field_id)\n");
   fprintf(out, "  pop de\n");
   fprintf(out, "  pop bc\n");
-  fprintf(out, "  ld hl, (%s)\n", name);
+  fprintf(out, "  ld hl, (%s)\n", name.c_str());
   fprintf(out, "  and a\n");
   fprintf(out, "  adc hl, bc\n");
   fprintf(out, "  ld (hl), e\n");
@@ -997,7 +1006,7 @@ int Z80::array_write_short(const char *name, int field_id)
   return 0;
 }
 
-int Z80::array_write_int(const char *name, int field_id)
+int Z80::array_write_int(std::string &name, int field_id)
 {
   return array_write_short(name, field_id);
 }

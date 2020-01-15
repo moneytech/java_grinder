@@ -3,16 +3,16 @@
  *  Author: Michael Kohn
  *   Email: mike@mikekohn.net
  *     Web: http://www.mikekohn.net/
- * License: GPL
+ * License: GPLv3
  *
- * Copyright 2014-2016 by Michael Kohn
+ * Copyright 2014-2019 by Michael Kohn
  *
  */
 
-#ifndef _SEGA_GENESIS_H
-#define _SEGA_GENESIS_H
+#ifndef JAVA_GRINDER_GENERATOR_SEGA_GENESIS_H
+#define JAVA_GRINDER_GENERATOR_SEGA_GENESIS_H
 
-#include "MC68000.h"
+#include "generator/MC68000.h"
 
 class SegaGenesis : public MC68000
 {
@@ -21,6 +21,7 @@ public:
   virtual ~SegaGenesis();
 
   virtual int open(const char *filename);
+  virtual int finish();
   virtual int start_init();
 
   virtual int sega_genesis_setPalettePointer_I();
