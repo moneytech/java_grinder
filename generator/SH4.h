@@ -5,7 +5,7 @@
  *     Web: http://www.mikekohn.net/
  * License: GPLv3
  *
- * Copyright 2014-2019 by Michael Kohn
+ * Copyright 2014-2020 by Michael Kohn
  *
  */
 
@@ -121,6 +121,9 @@ protected:
   int reg_max;        // size of register stack
   int stack;          // count how many things we put on the stack
   bool is_main : 1;
+  uint32_t ram_start;
+  uint32_t ram_end;
+  uint32_t org;
 };
 
 #endif

@@ -60,6 +60,7 @@ CPUS= \
   generator/MSP430X.o \
   generator/Propeller.o \
   generator/R5900.o \
+  generator/SH4.o \
   generator/STDC.o \
   generator/TMS9900.o \
   generator/W65816.o \
@@ -79,6 +80,7 @@ SYSTEMS= \
   generator/Playstation2VU0.o \
   generator/Playstation2VU1.o \
   generator/PIC32.o \
+  generator/SegaDreamcast.o \
   generator/SegaGenesis.o \
   generator/SNES.o \
   generator/TI84.o \
